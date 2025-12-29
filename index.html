@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Sistema Escolar - MVP</title>
+<style>
+body { font-family: Arial; background:#f4f6f8; padding:20px }
+h2 { background:#ddd; padding:10px }
+table { border-collapse: collapse; width:100%; background:#fff }
+th,td { border:1px solid #ccc; padding:6px; text-align:center }
+th { background:#eee }
+input, select, button { padding:5px; margin:3px }
+.nome { text-align:left }
+</style>
+</head>
+<body>
+
+<h1>Sistema Escolar – MVP</h1>
+
+<!-- CADASTRO DE ALUNOS -->
+<h2>Cadastro de Alunos (Admin)</h2>
+<textarea id="listaAlunos" rows="5" style="width:100%" placeholder="Um aluno por linha"></textarea><br>
+<button onclick="salvarAlunos()">Salvar Alunos</button>
+
+<!-- REGISTRO DE AULA -->
+<h2>Registro de Aula (Professor)</h2>
+Turma: <input id="turma" value="7º A">
+Disciplina: <input id="disciplina" value="Ciências">
+Professor: <input id="professor" value="Thiago"><br>
+Data: <input type="date" id="data">
+Conteúdo: <input id="conteudo" style="width:300px"><br>
+
+<table id="tabela">
+<thead>
+<tr><th>Aluno</th><th>Status</th><th>V1</th><th>V2</th></tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button onclick="salvarAula()">Salvar Registro</button>
+
+<!-- ADMIN -->
+<h2>Admin – Gerar Arquivos</h2>
+<button onclick="exportarDiario()">Exportar Diário (CSV)</button>
+<button onclick="exportarBoletim()">Exportar Boletim (CSV)</button>
+
+<script>
+function salvarAlunos(){
+  const alunos = document.getElementById("listaAlunos").value.split("\n").filter(a=>a.trim());
+  localStorage.setItem("alunos", JSON.stringify(alunos));
+  carregarTabela();
+  alert("Alunos cadastrados!");
+}
+
+function carregarTabela(){
+  const alunos = JSON.parse(localStorage.getItem("alunos")) || [];
+  const tbody = document.querySelector("#tabela tbody");
+  tbody.innerHTML = "";
+  alunos.forEach(a=>{
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="nome">${a}</td>
+      <td>
+        <select>
+          <option>P</option>
+          <option>F</option>
+          <option>FJ</option>
+        </select>
+      </td>
+      <td><input type="number" step="0.01"></td>
+      <td><input type="number" step="0.01"></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function arredonda05(x){
+  return Math.ceil(x*2)/2;
+}
+
+function salvarAula(){
+  const dados = JSON.parse(localStorage.getItem("registros")) || [];
+  document.querySelectorAll("#tabela tbody tr").forEach(l=>{
+    const v1 = parseFloat(l.children[2].children[0].value || 0);
+    const v2 = parseFloat(l.children[3].children[0].value || 0);
+    let m1 = arredonda05((v1+v2)/2);
+    let situacao = m1 >= 7 ? "Aprovado" : "Recuperação";
+
+    dados.push({
+      turma: turma.value,
+      disciplina: disciplina.value,
+      professor: professor.value,
+      data: data.value,
+      conteudo: conteudo.value,
+      aluno: l.children[0].innerText,
+      status: l.children[1].children[0].value,
+      v1, v2, m1, situacao
+    });
+  });
+  localStorage.setItem("registros", JSON.stringify(dados));
+  alert("Registro salvo!");
+}
+
+function gerarCSV(linhas,nome){
+  const csv = linhas.map(l=>Object.values(l).join(",")).join("\n");
+  const blob = new Blob([csv],{type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = nome;
+  a.click();
+}
+
+function exportarDiario(){
+  const dados = JSON.parse(localStorage.getItem("registros")) || [];
+  gerarCSV(dados,"diario_frequencia.csv");
+}
+
+function exportarBoletim(){
+  const dados = JSON.parse(localStorage.getItem("registros")) || [];
+  const boletim = {};
+  dados.forEach(d=>{
+    if(!boletim[d.aluno]) boletim[d.aluno]=[];
+    boletim[d.aluno].push(d.m1);
+  });
+  const linhas = [];
+  for(let a in boletim){
+    const mediaFinal = arredonda05(boletim[a].reduce((x,y)=>x+y)/boletim[a].length);
+    linhas.push({Aluno:a,Media_Final:mediaFinal});
+  }
+  gerarCSV(linhas,"boletim.csv");
+}
+
+carregarTabela();
+</script>
+
+</body>
+</html>
